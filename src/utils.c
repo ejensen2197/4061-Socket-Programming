@@ -142,14 +142,35 @@ int accept_connection(void) {
 int send_file_to_client(int socket, char * buffer, int size) 
 {
     //TODO: create a packet_t to hold the packet data
- 
+    packet_t packet;
+    packet.size = size;
+    //var to track data sent
+    int total_data_sent = 0;
+    int current_data_send = 0;
+
 
     //TODO: send the file size packet
+    if (write(socket, &packet.size, sizeof(packet.size)) < 0) {
+        perror("Failed to send file size");
+        return -1;
+    }
 
 
     //TODO: send the file data
+    while (total_data_sent < size) {
+        // Send the remaining data
+        current_data_send = write(socket, buffer + total_data_sent, size - total_data_sent);
+        //Fail case
+        if (current_data_send < 0) {
+            perror("Failed to send file data");
+            return -1;
+        }
+        //update tracking of bytes
+        total_data_sent += current_data_send;
+    }
   
     //TODO: return 0 on success, -1 on failure
+    return 0;
 
 }
 
@@ -163,15 +184,39 @@ int send_file_to_client(int socket, char * buffer, int size)
 char * get_request_server(int fd, size_t *filelength)
 {
     //TODO: create a packet_t to hold the packet data
+    packet_t packet;
  
     //TODO: receive the response packet
+    if (read(fd, &packet.size, sizeof(packet.size)) <= 0) {
+        perror("Failed to receive file size");
+        return NULL;
+    }
   
     //TODO: get the size of the image from the packet
+    *filelength = packet.size; // Assign the file size to the output parameter
+    int size_of_img = packet.size;
+
+    char *buffer = (char *)malloc(size_of_img);
+    if (!buffer) {
+        perror("Memory allocation failed");
+        return NULL; // Return NULL if memory allocation fails
+    }
 
     //TODO: recieve the file data and save into a buffer variable.
+    int total_data_received = 0; // Initialize total bytes received
+    int current_data_receive;
 
+    while (total_data_received < size_of_img) {
+        current_data_receive = read(fd, buffer + total_data_received, size_of_img - total_data_received);
+        if (current_data_receive <= 0) {
+            perror("Failed to receive file data");
+            free(buffer); // Free allocated memory on failure
+            return NULL;
+        }
+        total_data_received += current_data_receive; // Update the total received data
+    }
     //TODO: return the buffer
-
+    return buffer;
 }
 
 
@@ -189,15 +234,31 @@ char * get_request_server(int fd, size_t *filelength)
 ************************************************/
 int setup_connection(int port)
 {
-    //TODO: create a sockaddr_in struct to hold the address of the server   
+    //TODO: create a sockaddr_in struct to hold the address of the server
+    struct sockaddr_in server_addr;   
 
     //TODO: create a socket and save the file descriptor to sockfd
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);\
+    //fail case
+    if (sockfd < 0) {
+        perror("Socket creation failed");
+        return -1;
+    }
    
     //TODO: assign IP, PORT to the sockaddr_in struct
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
+    server_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
     //TODO: connect to the server
+    if (connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        perror("Connection to the server failed");
+        close(sockfd); // Close the socket on failure
+        return -1;
+    }
    
     //TODO: return the file descriptor for the socket
+    return sockfd;
 }
 
 
