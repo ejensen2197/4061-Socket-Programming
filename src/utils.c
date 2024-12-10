@@ -29,7 +29,7 @@
 //TODO: Declare a global variable to hold the file descriptor for the server socket
 int master_fd;
 //TODO: Declare a global variable to hold the mutex lock for the server socket
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;;
+pthread_mutex_t socket_lock = PTHREAD_MUTEX_INITIALIZER;;
 //TODO: Declare a gloabl socket address struct to hold the address of the server
 struct sockaddr_in server_addr; 
 /*
@@ -116,16 +116,16 @@ int accept_connection(void) {
    
    
    // TODO: Aquire the mutex lock
-    pthread_mutex_lock(&lock);
+    pthread_mutex_lock(&socket_lock);
    // TODO: Accept a new connection on the passive socket and save the fd to newsock
     int newsock = accept(master_fd, (struct sockaddr*)&addr, &addr_len);
     if (newsock < 0) {
       perror("Accept failed");
-      pthread_mutex_unlock(&lock);  // Ensure the lock is released before returning
+      pthread_mutex_unlock(&socket_lock);  // Ensure the lock is released before returning
       return -1; 
     }
    // TODO: Release the mutex lock
-    pthread_mutex_unlock(&lock);
+    pthread_mutex_unlock(&socket_lock);
 
    // TODO: Return the file descriptor for the new client connection
    return newsock;
@@ -271,14 +271,36 @@ int setup_connection(int port)
 ************************************************/
 int send_file_to_server(int socket, FILE *file, int size) 
 {
+    packet_t packet_size;
+    char* buffer;
     //TODO: send the file size packet
-   
+    packet_size.size = size;
+    if (write(socket, &packet_size, sizeof(packet_t)) < 0){
+      perror("Could not send file size to server");
+      return -1;
+    }
+
+    buffer = malloc(size);
+    if (buffer == NULL){
+      perror("Failed to malloc buffer");
+      return -1;
+    }
+
+    if (fread(buffer, 1, size, file) != size){
+      free(buffer);
+      perror("Could not read from buffer");
+      return -1;
+    }
 
     //TODO: send the file data
-   
+    if (write(socket, buffer, size) < 0){
+      free(buffer);
+      perror("Could not send file data");
+      return -1;
+    }
 
     // TODO: return 0 on success, -1 on failure
-   
+    return 0;
 }
 
 /**********************************************
@@ -290,22 +312,49 @@ int send_file_to_server(int socket, FILE *file, int size)
 int receive_file_from_server(int socket, const char *filename) 
 {
     //TODO: create a buffer to hold the file data
-    
-
-    //TODO: open the file for writing binary data
-   
-    
-   //TODO: create a packet_t to hold the packet data
-    
-   //TODO: receive the response packet
-  
+    //TODO: create a packet_t to hold the packet data
+    packet_t packet;
+    char* buffer;
+    FILE* file;
 
     //TODO: get the size of the image from the packet
-   
-   
+    if (read(socket, &packet, sizeof(packet_t)) < 0) {
+      perror("Error: failed to get the size of the image");
+      return -1;
+    }
+    //TODO: open the file for writing binary data
+    file = fopen(filename, "wb");
+    if (file == NULL) {
+      perror("Error, issue opening file");
+      return -1;
+    }
+
+    buffer = malloc(packet.size);
+    if (buffer == NULL) {
+        fclose(file);
+        perror("Error, malloc failed");
+        return -1;
+    }
+    
+   //TODO: receive the response packet
+    if (read(socket, buffer, packet.size) < 0) {
+        free(buffer);
+        fclose(file);
+        perror("Read failed");
+        return -1;
+    }
 
    //TODO: recieve the file data and write it to the file
+    if (fwrite(buffer, 1, packet.size, file) != packet.size) {
+        free(buffer);
+        fclose(file);
+        perror("Write failed");
+        return -1;
+    }
     
+    free(buffer);
+    fclose(file);
     //TODO: return 0 on success, -1 on failure
+    return 0;
 }
 
