@@ -11,9 +11,9 @@ init and accept_connections - Ethan
 send_file_to_client , get_request_server , setup_connection - Noah
 send_file_to_server and receive_file_from_server - Eric
 
-No Changes to makefile
+Changed make file to have OUTPUTDIR=output/img instead of OUTPUTDIR=output
 
-Make sure to add "img" folder to output folder
+No assumptions
 
 
 Through the use of dispatcher and worker functions in server.c we can allow for 

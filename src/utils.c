@@ -150,7 +150,7 @@ int send_file_to_client(int socket, char * buffer, int size)
 
 
     //TODO: send the file size packet
-    if (write(socket, &packet.size, sizeof(packet.size)) < 0) {
+    if (send(socket, &packet.size, sizeof(packet.size), 0) < 0) {
         perror("Failed to send file size");
         return -1;
     }
@@ -159,7 +159,7 @@ int send_file_to_client(int socket, char * buffer, int size)
     //TODO: send the file data
     while (total_data_sent < size) {
         // Send the remaining data
-        current_data_send = write(socket, buffer + total_data_sent, size - total_data_sent);
+        current_data_send = send(socket, buffer + total_data_sent, size - total_data_sent, 0);
         //Fail case
         if (current_data_send < 0) {
             perror("Failed to send file data");
@@ -187,7 +187,7 @@ char * get_request_server(int fd, size_t *filelength)
     packet_t packet;
  
     //TODO: receive the response packet
-    if (read(fd, &packet.size, sizeof(packet.size)) <= 0) {
+    if (recv(fd, &packet.size, sizeof(packet.size), 0) <= 0) {
         perror("Failed to receive file size");
         return NULL;
     }
@@ -207,7 +207,7 @@ char * get_request_server(int fd, size_t *filelength)
     int current_data_receive;
 
     while (total_data_received < size_of_img) {
-        current_data_receive = read(fd, buffer + total_data_received, size_of_img - total_data_received);
+        current_data_receive = recv(fd, buffer + total_data_received, size_of_img - total_data_received, 0);
         if (current_data_receive <= 0) {
             perror("Failed to receive file data");
             free(buffer); // Free allocated memory on failure
@@ -275,7 +275,7 @@ int send_file_to_server(int socket, FILE *file, int size)
     char* buffer;
     //TODO: send the file size packet
     packet_size.size = size;
-    if (write(socket, &packet_size, sizeof(packet_t)) < 0){
+    if (send(socket, &packet_size, sizeof(packet_t), 0) < 0){
       perror("Could not send file size to server");
       return -1;
     }
@@ -293,7 +293,7 @@ int send_file_to_server(int socket, FILE *file, int size)
     }
 
     //TODO: send the file data
-    if (write(socket, buffer, size) < 0){
+    if (send(socket, buffer, size, 0) < 0){
       free(buffer);
       perror("Could not send file data");
       return -1;
@@ -318,7 +318,7 @@ int receive_file_from_server(int socket, const char *filename)
     FILE* file;
 
     //TODO: get the size of the image from the packet
-    if (read(socket, &packet, sizeof(packet_t)) < 0) {
+    if (recv(socket, &packet, sizeof(packet_t), 0) < 0) {
       perror("Error: failed to get the size of the image");
       return -1;
     }
@@ -337,7 +337,7 @@ int receive_file_from_server(int socket, const char *filename)
     }
     
    //TODO: receive the response packet
-    if (read(socket, buffer, packet.size) < 0) {
+    if (recv(socket, buffer, packet.size, 0) < 0) {
         free(buffer);
         fclose(file);
         perror("Read failed");
